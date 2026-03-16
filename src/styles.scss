@@ -1,1 +1,31 @@
-/* You can add global styles to this file, and also import other style files */
+@use "mozek-angular/src/styles" as moz;
+
+@font-face {
+    font-family: 'CutePixel';
+    src: url( 'src/app/assets/fonts/CutePixel.ttf' ) format( 'truetype' );
+    font-weight: normal;
+    font-style: normal;
+    line-height: 0;
+}
+
+@font-face {
+    font-family: 'Mochiy';
+    src: url( 'src/app/assets/fonts/mochiy/mpchiy.ttf' ) format( 'truetype' );
+    font-weight: normal;
+    font-style: normal;
+    line-height: 0;
+}
+
+:root {
+    --background-color: #2a2a2a;
+    --line-color: color-mix(in srgb, #2a2a2a 70%, white);
+
+    --primary: #ffce54;
+    --primary-dark: #ce8900;
+
+    --line-size: 0.1rem;
+
+    ::-webkit-scrollbar { width: 5px;}
+    ::-webkit-scrollbar-track { background: transparent;}
+    ::-webkit-scrollbar-thumb { background: var(--line-color);}
+}
