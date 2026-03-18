@@ -1,4 +1,15 @@
-import { Component, OnInit, AfterViewInit, inject, ViewChild, ElementRef, DestroyRef, computed, effect } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  AfterViewInit,
+  OnDestroy,
+  inject,
+  ViewChild,
+  ElementRef,
+  DestroyRef,
+  computed,
+  effect
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
@@ -20,7 +31,11 @@ interface Pokemon {
   height: number;
   weight: number;
   stats: PokemonStats[];
-  abilities: { ability: { name: string}}[];
+  abilities: { ability: { name: string } }[];
+  species: {
+    name: string;
+    url: string;
+  };
   types: {
     slot: number;
     type: {
@@ -30,6 +45,11 @@ interface Pokemon {
   }[];
   sprites: {
     front_default: string;
+    other?: {
+      'official-artwork'?: {
+        front_default: string;
+      };
+    };
     versions: {
       'generation-v': {
         'black-white': {
@@ -71,6 +91,20 @@ interface EvolutionCard {
   gif: string;
 }
 
+interface PokemonSpecies {
+  flavor_text_entries: {
+    flavor_text: string;
+    language: { name: string };
+  }[];
+  names: {
+    name: string;
+    language: { name: string };
+  }[];
+  evolution_chain?: {
+    url: string;
+  };
+}
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -78,13 +112,16 @@ interface EvolutionCard {
   templateUrl: './home.html',
   styleUrls: ['./home.scss', '../../assets/scss/bat.scss'],
 })
-export class Home implements OnInit, AfterViewInit {
+export class Home implements OnInit, AfterViewInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly responsive = inject(ResponsiveService);
+
+  readonly screen = computed(() => this.responsive.breakpoint());
 
   private _radarCanvas?: ElementRef<HTMLCanvasElement>;
-  private readonly responsive = inject(ResponsiveService);
-  readonly screen = computed(() => this.responsive.breakpoint());
+  private chart?: Chart;
+  private viewReady = false;
 
   @ViewChild('radarCanvas')
   set radarCanvasSetter(canvas: ElementRef<HTMLCanvasElement> | undefined) {
@@ -95,22 +132,26 @@ export class Home implements OnInit, AfterViewInit {
     }
   }
 
-  loading: boolean = false;
-  libraryError: string = '';
-  loadingPokemon: boolean = false;
-  pokemonError: string = '';
+  loading = false;
+  libraryError = '';
+  loadingPokemon = false;
+  pokemonError = '';
 
   pokemonLibrary: PokemonLibrary[] = [];
-  pokemon!: Pokemon;
-  nameJapan: string = '';
-  description: string = '';
-  gif: string = '';
+  filteredPokemon: PokemonLibrary[] = [];
+  evolutions: EvolutionCard[] = [];
 
+  pokemon: Pokemon | null = null;
+  nameJapan = '';
+  description = '';
+  gif = '';
+
+  searchTerm = '';
   startset = 0;
   limit = 24;
 
-  private chart?: Chart;
-  private viewReady = false;
+  mobilePokemonLibrary = true;
+  mobilePokemonData = true;
 
   constructor() {
     effect(() => {
@@ -126,27 +167,31 @@ export class Home implements OnInit, AfterViewInit {
     });
   }
 
-  ngOnInit() {
-    this.loadPokemonLibrary()
+  ngOnInit(): void {
+    this.loadPokemonLibrary();
   }
 
-  mobilePokemonLibrary: boolean = true
-  mobilePokemonData: boolean = true
   ngAfterViewInit(): void {
     this.viewReady = true;
+
     if (this.pokemon) {
       this.createRadarChart();
     }
   }
 
-  loadPokemonLibrary() {
+  ngOnDestroy(): void {
+    this.chart?.destroy();
+  }
+
+  loadPokemonLibrary(): void {
     this.loading = true;
     this.libraryError = '';
 
-    this.http.get<any>('https://pokeapi.co/api/v2/pokemon?limit=1000')
+    this.http.get<{ results: { name: string; url: string }[] }>('https://pokeapi.co/api/v2/pokemon?limit=1000')
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
-          this.pokemonLibrary = data.results.map((p: any) => {
+          this.pokemonLibrary = data.results.map((p) => {
             const id = this.extractPokemonId(p.url);
 
             return {
@@ -167,6 +212,76 @@ export class Home implements OnInit, AfterViewInit {
       });
   }
 
+  loadPokemonData(pokemon: PokemonLibrary): void {
+    this.loadingPokemon = true;
+    this.pokemonError = '';
+    this.evolutions = [];
+
+    this.http.get<Pokemon>(`https://pokeapi.co/api/v2/pokemon/${pokemon.name}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (pokeData) => {
+        forkJoin([
+          this.http.get<PokemonSpecies>(pokeData.species.url)
+        ])
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: ([speciesData]) => {
+            this.pokemon = pokeData;
+
+            this.gif =
+              pokeData.sprites.versions['generation-v']['black-white'].animated.front_default ||
+              this.getPokemonGif(pokemon.name);
+
+            const entry = speciesData.flavor_text_entries.find((e) => e.language.name === 'en');
+            const nameJa = speciesData.names.find((e) => e.language.name === 'ja');
+
+            this.description = entry?.flavor_text.replace(/\f/g, ' ') || '';
+            this.nameJapan = nameJa?.name || '';
+
+            const evolutionUrl = speciesData.evolution_chain?.url;
+            if (evolutionUrl) {
+              this.loadEvolutionChain(evolutionUrl);
+            }
+
+            if (this.viewReady) {
+              this.createRadarChart();
+            }
+
+            this.loadingPokemon = false;
+          },
+          error: (error) => {
+            console.error('Failed to load Pokémon species data:', error);
+            this.pokemonError = 'Failed to load Pokémon species data.';
+            this.loadingPokemon = false;
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Failed to load Pokémon data:', error);
+        this.pokemonError = 'Failed to load Pokémon data.';
+        this.loadingPokemon = false;
+      }
+    });
+
+    if (this.screen() === 'mobile') {
+      this.mobilePokemonLibrary = false;
+      this.mobilePokemonData = true;
+    }
+  }
+
+  searchPokemon(): void {
+    const keyword = this.searchTerm.toLowerCase().trim();
+
+    if (!keyword) {
+      this.filteredPokemon = [...this.pokemonLibrary];
+      return;
+    }
+
+    this.filteredPokemon = this.pokemonLibrary.filter((pokemon) =>
+      pokemon.name.toLowerCase().includes(keyword) ||
+      pokemon.id.toString().includes(keyword)
+    );
+  }
+
   extractPokemonId(url: string): number {
     const parts = url.split('/').filter(Boolean);
     return Number(parts[parts.length - 1]);
@@ -176,59 +291,11 @@ export class Home implements OnInit, AfterViewInit {
     return name.replaceAll('-', ' ');
   }
 
-  filteredPokemon = [...this.pokemonLibrary];
-  searchTerm: string = '';
-  searchPokemon() {
-    const keyword = this.searchTerm.toLowerCase().trim();
-
-    if (!keyword) {
-      this.filteredPokemon = [...this.pokemonLibrary];
-      return;
-    }
-
-    this.filteredPokemon = this.pokemonLibrary.filter(pokemon =>
-      pokemon.name.toLowerCase().includes(keyword) ||
-      pokemon.id.toString() === keyword
-    );
-  }
-
-  loadPokemonData(pokemon: PokemonLibrary) {
-    const pokemonReq = this.http.get<Pokemon>(`https://pokeapi.co/api/v2/pokemon/${pokemon.name}`);
-    const speciesReq = this.http.get<any>(`https://pokeapi.co/api/v2/pokemon-species/${pokemon.name}`);
-    
-    forkJoin([pokemonReq, speciesReq])
-    .pipe(takeUntilDestroyed(this.destroyRef)) 
-    .subscribe(([pokeData, speciesData]) => {
-      this.pokemon = pokeData;
-      this.gif = pokeData.sprites.versions['generation-v']['black-white'].animated.front_default;
-      if(!this.gif) {
-        this.gif = `https://play.pokemonshowdown.com/sprites/ani/${pokemon.name}.gif`
-      }
-      console.log(this.gif, this.pokemon)
-
-        const entry = speciesData.flavor_text_entries.find((e: any) => e.language.name === 'en');
-        const nameJa = speciesData.names.find((e: any) => e.language.name === 'ja');
-
-        this.description = entry?.flavor_text.replace(/\f/g, ' ') || '';
-        this.nameJapan = nameJa?.name || '';
-
-        const evolutionUrl = speciesData.evolution_chain?.url;
-        if (evolutionUrl) {
-          this.loadEvolutionChain(evolutionUrl);
-        }
-
-        if (this.viewReady) {
-          this.createRadarChart();
-        }
-      });
-    if (this.screen() === 'mobile') {
-      this.mobilePokemonLibrary = false
-      this.mobilePokemonData = true
-    }
-  }
-
   formatLabel(label: string): string {
-    return label.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return label
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   scaleAdjustment(value: number | undefined): string {
@@ -237,101 +304,115 @@ export class Home implements OnInit, AfterViewInit {
   }
 
   createRadarChart(): void {
-    setTimeout(() => {
-      if (!this._radarCanvas || !this.pokemon?.stats) return;
+    if (!this._radarCanvas || !this.pokemon?.stats) return;
 
-      const labels = this.pokemon.stats.map(item => this.formatStatName(item.stat.name));
-      const values = this.pokemon.stats.map(item => item.base_stat);
+    const labels = this.pokemon.stats.map(item => this.formatStatName(item.stat.name));
+    const values = this.pokemon.stats.map(item => item.base_stat);
 
-      this.chart?.destroy();
+    this.chart?.destroy();
 
-      this.chart = new Chart(this._radarCanvas.nativeElement, {
-        type: 'radar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Stats',
-            data: values,
-            backgroundColor: 'rgba(255, 207, 84, 0.2)',
-            borderColor: '#ffce54',
-          }],
+    this.chart = new Chart(this._radarCanvas.nativeElement, {
+      type: 'radar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Stats',
+          data: values,
+          backgroundColor: 'rgba(255, 207, 84, 0.2)',
+          borderColor: '#ffce54',
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false,
+          },
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false,
+        scales: {
+          r: {
+            angleLines: {
+              color: 'rgba(255, 255, 255, 0.3)',
+            },
+            grid: {
+              color: 'rgba(255, 255, 255, 0.2)',
+            },
+            pointLabels: {
+              display: true,
+              color: '#ffffff',
+              font: {
+                family: "'CutePixel', sans-serif",
+                size: 14
+              }
+            },
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.2)',
+              backdropColor: '#2a2a2a',
+              stepSize: 20,
+              font: {
+                family: "'CutePixel', sans-serif",
+                size: 10
+              }
             },
           },
-          scales: {
-            r: {
-              angleLines: {
-                color: 'rgba(255, 255, 255, 0.3)',
-              },
-              grid: {
-                color: 'rgba(255, 255, 255, 0.2)',
-              },
-              pointLabels: {
-                display: true,
-                color: '#ffffff',
-                font: {
-                  family: "'CutePixel', sans-serif",
-                  size: 14
-                }
-              },
-              ticks: {
-                color: 'rgba(255, 255, 255, 0.2)',
-                backdropColor: '#2a2a2a',
-                stepSize: 20,
-                font: {
-                  family: "'CutePixel', sans-serif",
-                  size: 10
-                }
-              },
-            },
-          },
-        }
-      });
-    }, 0);
+        },
+      }
+    });
   }
 
   formatStatName(name: string): string[] {
-    return name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1));
+    return name
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1));
   }
 
   getEmptySlots(length: number): number[] {
     return Array(Math.max(0, 3 - length)).fill(0);
   }
 
-  evolutions: EvolutionCard[] = [];
-  loadEvolutionChain(url: string) {
+  loadEvolutionChain(url: string): void {
     this.http.get<EvolutionChainResponse>(url)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((data) => {
-        const names = this.extractEvolutionNames(data.chain);
-        this.loadEvolutionImages(names);
+      .subscribe({
+        next: (data) => {
+          const names = this.extractEvolutionNames(data.chain);
+          this.loadEvolutionImages(names);
+        },
+        error: (error) => {
+          console.error('Failed to load evolution chain:', error);
+          this.evolutions = [];
+        }
       });
   }
 
-  loadEvolutionImages(names: string[]) {
+  loadEvolutionImages(names: string[]): void {
     const requests = names.map(name =>
-      this.http.get<any>(`https://pokeapi.co/api/v2/pokemon/${name}`)
+      this.http.get<Pokemon>(`https://pokeapi.co/api/v2/pokemon/${name}`)
     );
 
     forkJoin(requests)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((results) => {
-        this.evolutions = results.map((pokemon) => ({
-          name: pokemon.name,
-          image: pokemon.sprites.other['official-artwork'].front_default || pokemon.sprites.front_default,
-          gif: `https://play.pokemonshowdown.com/sprites/ani/${pokemon.name}.gif`
-        }));
+      .subscribe({
+        next: (results) => {
+          this.evolutions = results.map((pokemon) => ({
+            name: pokemon.name,
+            image:
+              pokemon.sprites.other?.['official-artwork']?.front_default ||
+              pokemon.sprites.front_default,
+            gif: this.getPokemonGif(pokemon.name)
+          }));
+        },
+        error: (error) => {
+          console.error('Failed to load evolution images:', error);
+          this.evolutions = [];
+        }
       });
   }
 
   extractEvolutionNames(node: EvolutionNode): string[] {
     let result: string[] = [node.species.name];
+
     for (const next of node.evolves_to) {
       result = [...result, ...this.extractEvolutionNames(next)];
     }
@@ -339,13 +420,46 @@ export class Home implements OnInit, AfterViewInit {
     return result;
   }
 
-  openMenu() {
-    
+  getPokemonGif(name: string): string {
+    return `https://play.pokemonshowdown.com/sprites/ani/${name}.gif`;
   }
 
-  closeData() {
-    this.searchTerm = ''
-    this.mobilePokemonLibrary = true
-    this.mobilePokemonData = false
+  get visiblePokemon(): PokemonLibrary[] {
+    return this.filteredPokemon.slice(this.startset, this.startset + this.limit);
+  }
+
+  gettingLibraryLoading: boolean = false
+  onScroll(event: Event): void {
+    const element = event.target as HTMLElement;
+    const atBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
+
+    if (atBottom) {
+      this.gettingLibraryLoading = true
+      setTimeout(() => {
+        this.loadMore();
+        this.gettingLibraryLoading = false
+      }, 1500);
+    }
+  }
+
+  loadMore(): void {
+    if (this.limit >= this.filteredPokemon.length) return;
+
+    this.limit += 24;
+  }
+
+  menuOpen = false;
+  openMenu(): void {
+    this.menuOpen = true;
+  }
+
+  closeMenu(): void {
+    this.menuOpen = false;
+  }
+
+  closeData(): void {
+    this.searchTerm = '';
+    this.mobilePokemonLibrary = true;
+    this.mobilePokemonData = false;
   }
 }

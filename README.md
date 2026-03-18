@@ -1,59 +1,72 @@
+<div align="center">
+    <img src="./src/app/assets/images/logo/pokemon-logo.png" width="400" alt="Pokemon Logo Banner"/>
 # Pokemon
+<p>by thecodemeor</p>
+</div>
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.1.
+Built during my free time as a playground to experiment with API calls. What started as “just trying things out” turned into a fun little Pokédex project.
 
-## Development server
+🌐 Live Demo: https://thecodemeor.github.io/pokemon/
 
-To start a local development server, run:
+## Features
+
+### Visual Design
+- **Pixel Art Styling**: All sprites and UI elements use pixelated rendering for authentic retro feel
+- **Responsive Layout**: Three-panel design that adapts to different screen sizes
+
+### Interactive Features
+- **Search Functionality**: Search Pokémon by name or Pokédex number
+- **Click Selection**: Click any Pokémon sprite in the grid to view its data
+- **Live Data**: All data fetched from PokéAPI in real-time
+- **Audio Playback**: Play authentic Pokémon cries from the official API
+- **Smooth Animations**: Floating sprites, pulsing outlines, blinking cursors, and bouncing pointers
+
+## Technology Stack
+
+- **Frontend Framework**: Angular
+- **Build Tool**: Vite
+- **Styling**: Mozek (https://thecodemeor.github.io/mozek-website)
+- **API**: PokéAPI (https://pokeapi.co/)
+- **Font**: Press Start 2P (pixel font)
+
+## Installation & Setup
 
 ```bash
+# Install dependencies
+npm install
+
+# Start development server
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## API Integration
 
-## Code scaffolding
+The application uses the free and open-source PokéAPI:
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+- **Pokémon Data**: `https://pokeapi.co/api/v2/pokemon/{id}`
+- **Species Data**: `https://pokeapi.co/api/v2/pokemon-species/{id}` (for descriptions)
+- **Sprites**: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{id}.png`
+- **Cries**: `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/{id}.ogg`
 
-```bash
-ng generate component component-name
-```
+## Browser Compatibility
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+- Chrome/Chromium (recommended)
+- Firefox
+- Safari
+- Edge
 
-```bash
-ng generate --help
-```
+## Credits
 
-## Building
+- **Pokémon Data**: [PokéAPI](https://pokeapi.co/)
+- **Sprites**: [PokeAPI/sprites](https://github.com/PokeAPI/sprites)
+- **Cries**: [PokeAPI/cries](https://github.com/PokeAPI/cries)
+- **Font**: [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P)
 
-To build the project run:
+## License
 
-```bash
-ng build
-```
+This project is created for educational and fan purposes. Pokémon is a trademark of The Pokémon Company International.
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+---
 
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+**Version**: 1.0.0  
+**Last Updated**: March 2026
