@@ -88,7 +88,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  page: string = 'types'
+  page: string = 'pokedex'
   ngOnInit(): void {
     this.loadPokemonLibrary();
 
