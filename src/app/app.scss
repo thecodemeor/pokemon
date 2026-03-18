@@ -14,6 +14,19 @@
         width: 100%; height: 100%;
         border-left: solid var(--line-size) var(--line-color);
         border-right: solid var(--line-size) var(--line-color);
+        
+        .author {
+            position: absolute;
+            top: 0; right: 0;
+            display: flex;
+            height: var(--moz-space-4);
+            padding: var(--moz-space-1);
+            font-family: "CutePixel", sans-serif;
+            color: var(--line-color);
+            align-items: center;
+
+            &.mobile { height: var(--moz-space-2);}
+        }
 
         .version {
             position: absolute;

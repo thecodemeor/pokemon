@@ -20,90 +20,7 @@ import Chart from 'chart.js/auto';
 import { MozDivider } from 'mozek-angular';
 import { ResponsiveService } from 'src/app/services/responsive.service';
 
-interface PokemonLibrary {
-  id: number;
-  name: string;
-  sprite: string;
-}
-
-interface Pokemon {
-  name: string;
-  height: number;
-  weight: number;
-  stats: PokemonStats[];
-  abilities: { ability: { name: string } }[];
-  species: {
-    name: string;
-    url: string;
-  };
-  types: {
-    slot: number;
-    type: {
-      name: string;
-      url: string;
-    };
-  }[];
-  sprites: {
-    front_default: string;
-    other?: {
-      'official-artwork'?: {
-        front_default: string;
-      };
-    };
-    versions: {
-      'generation-v': {
-        'black-white': {
-          animated: {
-            front_default: string;
-          };
-        };
-      };
-    };
-  };
-}
-
-interface PokemonStats {
-  base_stat: number;
-  effort: number;
-  stat: {
-    name: string;
-    url: string;
-  };
-}
-
-interface PokemonSpeciesRef {
-  name: string;
-  url: string;
-}
-
-interface EvolutionNode {
-  species: PokemonSpeciesRef;
-  evolves_to: EvolutionNode[];
-}
-
-interface EvolutionChainResponse {
-  chain: EvolutionNode;
-}
-
-interface EvolutionCard {
-  name: string;
-  image: string;
-  gif: string;
-}
-
-interface PokemonSpecies {
-  flavor_text_entries: {
-    flavor_text: string;
-    language: { name: string };
-  }[];
-  names: {
-    name: string;
-    language: { name: string };
-  }[];
-  evolution_chain?: {
-    url: string;
-  };
-}
+import { PokemonLibrary, Pokemon, EvolutionNode, EvolutionChainResponse, EvolutionCard, PokemonSpecies, PokemonType } from 'src/app/pages/home/home.interface';
 
 @Component({
   selector: 'app-home',
@@ -123,6 +40,10 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   private chart?: Chart;
   private viewReady = false;
 
+
+  /* =========================================================
+    Pokédex
+  ========================================================= */
   @ViewChild('radarCanvas')
   set radarCanvasSetter(canvas: ElementRef<HTMLCanvasElement> | undefined) {
     this._radarCanvas = canvas;
@@ -167,8 +88,11 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  page: string = 'types'
   ngOnInit(): void {
     this.loadPokemonLibrary();
+
+    this.loadPokemonTypes();
   }
 
   ngAfterViewInit(): void {
@@ -187,21 +111,24 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.loading = true;
     this.libraryError = '';
 
-    this.http.get<{ results: { name: string; url: string }[] }>('https://pokeapi.co/api/v2/pokemon?limit=1000')
+    this.http.get<{ results: { name: string; url: string }[] }>('https://pokeapi.co/api/v2/pokemon?limit=2000')
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
-          this.pokemonLibrary = data.results.map((p) => {
-            const id = this.extractPokemonId(p.url);
+          this.pokemonLibrary = data.results
+            .map((p) => {
+              const id = this.extractPokemonId(p.url);
 
-            return {
-              id,
-              name: p.name,
-              sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
-            };
-          });
+              return {
+                id,
+                name: p.name,
+                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+              };
+            })
+            .filter((pokemon) => pokemon.id >= 1 && pokemon.id <= 1000);
 
           this.filteredPokemon = [...this.pokemonLibrary];
+          this.limit = 24;
           this.loading = false;
         },
         error: (error) => {
@@ -429,16 +356,20 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   gettingLibraryLoading: boolean = false
+  get hasMorePokemon(): boolean {
+    return this.limit < this.filteredPokemon.length;
+  }
   onScroll(event: Event): void {
     const element = event.target as HTMLElement;
     const atBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
 
-    if (atBottom) {
-      this.gettingLibraryLoading = true
+    if (atBottom && this.hasMorePokemon && !this.gettingLibraryLoading) {
+      this.gettingLibraryLoading = true;
+
       setTimeout(() => {
         this.loadMore();
-        this.gettingLibraryLoading = false
-      }, 1500);
+        this.gettingLibraryLoading = false;
+      }, 500);
     }
   }
 
@@ -448,12 +379,87 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.limit += 24;
   }
 
-  menuOpen = false;
-  openMenu(): void {
-    this.menuOpen = true;
+
+  /* =========================================================
+    Types
+  ========================================================= */
+  pokemonTypes: PokemonType[] = [];
+  typeLoading = false;
+  typeloadingPokemon = true
+  typeError = '';
+
+  loadPokemonTypes(): void {
+    this.typeLoading = true;
+    this.typeError = '';
+
+    this.http.get<{ results: PokemonType[] }>('https://pokeapi.co/api/v2/type')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          this.pokemonTypes = data.results.filter(type =>
+            !['shadow', 'unknown'].includes(type.name)
+          );
+
+          this.typeLoading = false;
+        },
+        error: (error) => {
+          console.error('Failed to load Pokémon types:', error);
+          this.typeError = 'Failed to load Pokémon types.';
+          this.typeLoading = false;
+        }
+      });
   }
 
-  closeMenu(): void {
+  typeActive: string = ''
+  filterByType(typeName: string): void {
+    this.loading = true;
+    this.typeActive = typeName
+
+    this.http.get<any>(`https://pokeapi.co/api/v2/type/${typeName}`)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          const pokemonList = data.pokemon
+            .map((p: any) => {
+              const id = this.extractPokemonId(p.pokemon.url);
+
+              return {
+                id,
+                name: p.pokemon.name,
+                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+              };
+            })
+            .filter((pokemon: PokemonLibrary) => pokemon.id >= 1 && pokemon.id <= 1000);
+
+          this.filteredPokemon = pokemonList;
+          this.limit = 24;
+          this.loading = false;
+        },
+        error: (error) => {
+          console.error('Failed to filter by type:', error);
+          this.loading = false;
+        }
+      });
+  }
+
+
+  /* =========================================================
+    Open Menu
+  ========================================================= */
+  menuOpen = false;
+  openMenu(page: string): void {
+    switch (page) {
+      case 'pokedex': 
+        this.pokemon = null;
+        this.limit = 24
+        this.loadPokemonLibrary();
+        this.page = page
+        break;
+      case 'types':
+        this.loadPokemonLibrary();
+        this.page = page
+        break;
+    }
     this.menuOpen = false;
   }
 

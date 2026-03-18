@@ -1,6 +1,7 @@
 <div class="container" [class]="screen() !== 'mobile' ? 'px-4' : 'px-2'">
   <div class="content" [class]="screen() !== 'mobile' ? 'py-4' : 'py-2'">
     <router-outlet />
+    <p class="author" [class.mobile]="screen() === 'mobile'">&#64;thecodemeor</p>
     <p class="version" [class.mobile]="screen() === 'mobile'">V_{{ version }}&nbsp;&nbsp;|&nbsp;&nbsp;&copy; {{ licenseYear }}. All Rights Reserved</p>
   </div>
 </div>

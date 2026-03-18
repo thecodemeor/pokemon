@@ -1,6 +1,5 @@
 <div align="center">
     <img src="./src/app/assets/images/logo/pokemon-logo.png" width="400" alt="Pokemon Logo Banner"/>
-# Pokemon
 <p>by thecodemeor</p>
 </div>
 

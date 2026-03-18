@@ -1,25 +1,258 @@
 <div class="container">
-    @if (mobilePokemonData) {
-        <div class="showcase-section" [class.mobile]="screen() === 'mobile'">
-            <div class="header">
-                @if (screen() !== 'mobile') {
-                    <div class="menu-pokemon" (click)="openMenu()">
-                        <img src="assets/images/icons/menu.svg" alt="Menu Button">
+    @if (page === 'pokedex') {
+        @if (mobilePokemonData) {
+            <div class="showcase-section" [class.mobile]="screen() === 'mobile'">
+                <div class="header">
+                    @if (screen() !== 'mobile') {
+                        <div class="menu-pokemon" (click)="menuOpen = true">
+                            <img src="assets/images/icons/menu.svg" alt="Menu Button">
+                        </div>
+                    }
+    
+                    <div class="logo">
+                        <h1>Pokémon</h1>
                     </div>
-                }
+    
+                    @if (screen() === 'mobile') {
+                        <div class="close-pokemon-data" (click)="closeData()">
+                            <img src="assets/images/icons/close.svg" alt="Close Button">
+                        </div>
+                    }
+                </div>
+    
+                <div class="selected-pokemon">
+                    @if (loadingPokemon) {
+                        <div class="loading-state">
+                            <img src="assets/images/loading-pokeball.gif" [class.mobile]="screen() === 'mobile'" alt="Loading Pokémon data">
+                            <p>Loading Pokémon data<span class="dots"></span></p>
+                        </div>
+                    }
+                    @else if (pokemonError) {
+                        <div class="loading-state error pixeltext">
+                            <p>{{ pokemonError }}</p>
+                        </div>
+                    }
+                    @else if (pokemon) {
+                        <div class="pokemon-display-container">
+                            <div class="pokemon-display">
+                                <div class="pokemon-view">
+                                    <div class="image">
+                                        @if (gif) {
+                                            <img [src]="gif" [alt]="pokemon.name + ' GIF'">
+                                        }
+                                        @else {
+                                            <img [src]="pokemon.sprites.front_default" [alt]="pokemon.name + ' Sprite'">
+                                        }
+                                    </div>
+    
+                                    <div class="background-text japan">{{ nameJapan }}</div>
+                                    <div class="background-text english">{{ pokemon.name | titlecase }}</div>
+                                </div>
+    
+                                <div class="pokemon-biodata">
+                                    <label>{{ formatPokemonName(pokemon.name) | titlecase }}</label>
+    
+                                    @if (screen() !== 'mobile') {
+                                        <div class="spacer"></div>
+                                    }
+    
+                                    <div class="pokemon-bmi">
+                                        <div class="measurement">
+                                            <img class="type-img" src="assets/images/icons/weight.svg" alt="Weight Icon">
+                                            <h5>{{ scaleAdjustment(pokemon.weight) }} kg</h5>
+                                        </div>
+    
+                                        <div class="measurement">
+                                            <img class="type-img" src="assets/images/icons/ruler.svg" alt="Height Icon">
+                                            <h5>{{ scaleAdjustment(pokemon.height) }} m</h5>
+                                        </div>
+                                    </div>
+    
+                                    <div class="pokemon-type">
+                                        @for (type of pokemon.types; track type.type.name) {
+                                            <div class="type-pill" [class]="'type-' + type.type.name">
+                                                <img
+                                                    [src]="'assets/images/icons/types/' + type.type.name + '.svg'"
+                                                    [alt]="type.type.name | titlecase"
+                                                >
+                                                <span class="pixeltext">{{ type.type.name | titlecase }}</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+    
+                        @if (description) {
+                            <div class="pokemon-description">
+                                <p>{{ description }}</p>
+                            </div>
+                        }
+    
+                        <div class="pokemon-details">
+                            <div class="pokemon-abilities">
+                                <h4>Abilities</h4>
+    
+                                <div class="flex flex-col gap-1">
+                                    @for (ability of pokemon.abilities; track ability.ability.name) {
+                                        <div class="abilities-box pixeltext">
+                                            {{ formatLabel(ability.ability.name) }}
+                                        </div>
+                                    }
+    
+                                    @for (i of getEmptySlots(pokemon.abilities.length); track $index) {
+                                        <div class="abilities-box empty">.</div>
+                                    }
+                                </div>
+                            </div>
+    
+                            <div class="radar-chart-wrapper">
+                                <canvas #radarCanvas></canvas>
+                            </div>
+                        </div>
+    
+                        <moz-divider>
+                            <p>Evolution</p>
+                        </moz-divider>
+    
+                        <div class="pokemon-evolution-container pt-0">
+                            @if (evolutions.length > 0) {
+                                <div class="pokemon-evolution">
+                                    @for (evo of evolutions; track evo.name) {
+                                        <div class="evolution-card">
+                                            <img [src]="evo.gif || evo.image" [alt]="evo.name">
+                                            <p>{{ formatLabel(evo.name) }}</p>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            @else {
+                                <div class="loading-state data-site">
+                                    <p>This Pokémon does not evolve.</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    @else {
+                        <div class="bat-container">
+                            <div class="background-symbol"></div>
+                            <div class="bat"></div>
+    
+                            <div class="pixeltext">
+                                <p>The pokémon that you<br>select will display</p>
+                                <span class="bold">HERE!</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    
+        @if (mobilePokemonLibrary) {
+            <div class="pokemon-library">
+                <div class="search-bar">
+                    <input
+                        type="text"
+                        class="pixeltext"
+                        [(ngModel)]="searchTerm"
+                        (input)="searchPokemon()"
+                        placeholder="Search your Pokémon here..."
+                    >
+    
+                    @if (screen() === 'mobile') {
+                        <div class="menu-pokemon" (click)="menuOpen = true">
+                            <img src="assets/images/icons/menu.svg" alt="Menu Button">
+                        </div>
+                    }
+                </div>
+    
+                <div class="scrollable" (scroll)="onScroll($event)">
+                    <div class="grid-template"></div>
+    
+                    @if (loading) {
+                        <div class="loading-state">
+                            <img src="assets/images/loading-pokeball.gif" [class.mobile]="screen() === 'mobile'" alt="Loading Pokémon library">
+                            <p>Loading Pokémon library<span class="dots"></span></p>
+                        </div>
+                    }
+                    @else if (libraryError) {
+                        <div class="loading-state error pixeltext">
+                            <p>{{ libraryError }}</p>
+                        </div>
+                    }
+                    @else if (visiblePokemon.length > 0) {
+                        <div class="pokemon-grid">
+                            @for (poke of visiblePokemon; track poke.id) {
+                                <div class="pokemon-card" (click)="loadPokemonData(poke)">
+                                    <div class="background-text number pixeltext">{{ poke.id }}</div>
+                                    <img [src]="poke.sprite" [alt]="poke.name + ' Sprite'" loading="lazy">
+                                    <p>{{ formatPokemonName(poke.name) | titlecase }}</p>
+                                </div>
+                            }
+                            @if (gettingLibraryLoading && hasMorePokemon) {
+                                <div class="load-more">
+                                    <img src="assets/images/loading-pokeball.gif" alt="Loading Pokémon library">
+                                    <p>Loading more</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    @else {
+                        <div class="loading-state">
+                            <p class="question-mark">?</p>
+                            <p>No Pokémon found.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+
+    @if (page === 'types') {
+        <div class="pokemon-types-section" [class.mobile]="screen() === 'mobile'">
+            <div class="header">
+                <div class="menu-pokemon" (click)="menuOpen = true">
+                    <img src="assets/images/icons/menu.svg" alt="Menu Button">
+                </div>
 
                 <div class="logo">
                     <h1>Pokémon</h1>
                 </div>
+            </div>
 
-                @if (screen() === 'mobile') {
-                    <div class="close-pokemon-data" (click)="closeData()">
-                        <img src="assets/images/icons/close.svg" alt="Close Button">
+            <div class="type-filter">
+                @if (typeLoading) {
+                    <div class="load-more">
+                        <img src="assets/images/loading-pokeball.gif" alt="Loading Pokémon library">
+                        <p>Loading</p>
+                    </div>
+                }
+                @else if (typeError) {
+                    <div class="loading-state error type-site pixeltext">
+                        <p>{{ typeError }}</p>
+                    </div>
+                }
+                @else {
+                    <div class="type-list">
+                        @for (type of pokemonTypes; track type.name) {
+                            <div
+                                class="type-pill"
+                                [class]="'type-' + type.name"
+                                [class.active]="typeActive === type.name"
+                                [style.display]="type.name === 'stellar' ? 'none' : ''"
+                                (click)="filterByType(type.name)"
+                            >
+                                <img [src]="'assets/images/icons/types/' + type.name + '.svg'"
+                                    [alt]="type.name | titlecase"
+                                >
+                                <span class="pixeltext">&nbsp;&nbsp;&nbsp;{{ type.name | titlecase }}</span>
+                            </div>
+                        }
                     </div>
                 }
             </div>
 
-            <div class="selected-pokemon">
+            <div class="pokemon-library">
                 @if (loadingPokemon) {
                     <div class="loading-state">
                         <img src="assets/images/loading-pokeball.gif" [class.mobile]="screen() === 'mobile'" alt="Loading Pokémon data">
@@ -31,103 +264,30 @@
                         <p>{{ pokemonError }}</p>
                     </div>
                 }
-                @else if (pokemon) {
-                    <div class="pokemon-display-container">
-                        <div class="pokemon-display">
-                            <div class="pokemon-view">
-                                <div class="image">
-                                    @if (gif) {
-                                        <img [src]="gif" [alt]="pokemon.name + ' GIF'">
-                                    }
-                                    @else {
-                                        <img [src]="pokemon.sprites.front_default" [alt]="pokemon.name + ' Sprite'">
-                                    }
-                                </div>
-
-                                <div class="background-text japan">{{ nameJapan }}</div>
-                                <div class="background-text english">{{ pokemon.name | titlecase }}</div>
-                            </div>
-
-                            <div class="pokemon-biodata">
-                                <label>{{ formatPokemonName(pokemon.name) | titlecase }}</label>
-
-                                @if (screen() !== 'mobile') {
-                                    <div class="spacer"></div>
-                                }
-
-                                <div class="pokemon-bmi">
-                                    <div class="measurement">
-                                        <img class="type-img" src="assets/images/icons/weight.svg" alt="Weight Icon">
-                                        <h5>{{ scaleAdjustment(pokemon.weight) }} kg</h5>
-                                    </div>
-
-                                    <div class="measurement">
-                                        <img class="type-img" src="assets/images/icons/ruler.svg" alt="Height Icon">
-                                        <h5>{{ scaleAdjustment(pokemon.height) }} m</h5>
-                                    </div>
-                                </div>
-
-                                <div class="pokemon-type">
-                                    @for (type of pokemon.types; track type.type.name) {
-                                        <div class="type-pill" [class]="'type-' + type.type.name">
-                                            <img
-                                                [src]="'assets/images/icons/types/' + type.type.name + '.svg'"
-                                                [alt]="type.type.name | titlecase"
-                                            >
-                                            <span class="pixeltext">{{ type.type.name | titlecase }}</span>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    @if (description) {
-                        <div class="pokemon-description">
-                            <p>{{ description }}</p>
-                        </div>
-                    }
-
-                    <div class="pokemon-details">
-                        <div class="pokemon-abilities">
-                            <h4>Abilities</h4>
-
-                            <div class="flex flex-col gap-1">
-                                @for (ability of pokemon.abilities; track ability.ability.name) {
-                                    <div class="abilities-box pixeltext">
-                                        {{ formatLabel(ability.ability.name) }}
+                @else if (pokemonTypes) {
+                    <div class="scrollable" (scroll)="onScroll($event)">
+                        <div class="grid-template"></div>
+                        @if (visiblePokemon.length > 0) {
+                            <div class="pokemon-grid">
+                                @for (poke of visiblePokemon; track poke.id) {
+                                    <div class="pokemon-card">
+                                        <div class="background-text number pixeltext">{{ poke.id }}</div>
+                                        <img [src]="poke.sprite" [alt]="poke.name + ' Sprite'" loading="lazy">
+                                        <p>{{ formatPokemonName(poke.name) | titlecase }}</p>
                                     </div>
                                 }
-
-                                @for (i of getEmptySlots(pokemon.abilities.length); track $index) {
-                                    <div class="abilities-box empty">.</div>
-                                }
-                            </div>
-                        </div>
-
-                        <div class="radar-chart-wrapper">
-                            <canvas #radarCanvas></canvas>
-                        </div>
-                    </div>
-
-                    <moz-divider>
-                        <p>Evolution</p>
-                    </moz-divider>
-
-                    <div class="pokemon-evolution-container pt-0">
-                        @if (evolutions.length > 0) {
-                            <div class="pokemon-evolution">
-                                @for (evo of evolutions; track evo.name) {
-                                    <div class="evolution-card">
-                                        <img [src]="evo.gif || evo.image" [alt]="evo.name">
-                                        <p>{{ formatLabel(evo.name) }}</p>
+                                @if (gettingLibraryLoading && hasMorePokemon) {
+                                    <div class="load-more">
+                                        <img src="assets/images/loading-pokeball.gif" alt="Loading Pokémon library">
+                                        <p>Loading more</p>
                                     </div>
                                 }
                             </div>
                         }
                         @else {
-                            <div class="loading-state data-site">
-                                <p>This Pokémon does not evolve.</p>
+                            <div class="loading-state">
+                                <p class="question-mark">?</p>
+                                <p>No Pokémon found.</p>
                             </div>
                         }
                     </div>
@@ -147,78 +307,19 @@
         </div>
     }
 
-    @if (mobilePokemonLibrary) {
-        <div class="pokemon-library">
-            <div class="search-bar">
-                <input
-                    type="text"
-                    class="pixeltext"
-                    [(ngModel)]="searchTerm"
-                    (input)="searchPokemon()"
-                    placeholder="Search your Pokémon here..."
-                >
-
-                @if (screen() === 'mobile') {
-                    <div class="menu-pokemon" (click)="openMenu()">
-                        <img src="assets/images/icons/menu.svg" alt="Menu Button">
-                    </div>
-                }
-            </div>
-
-            <div class="scrollable" (scroll)="onScroll($event)">
-                <div class="grid-template"></div>
-
-                @if (loading) {
-                    <div class="loading-state">
-                        <img src="assets/images/loading-pokeball.gif" [class.mobile]="screen() === 'mobile'" alt="Loading Pokémon library">
-                        <p>Loading Pokémon library<span class="dots"></span></p>
-                    </div>
-                }
-                @else if (libraryError) {
-                    <div class="loading-state error pixeltext">
-                        <p>{{ libraryError }}</p>
-                    </div>
-                }
-                @else if (visiblePokemon.length > 0) {
-                    <div class="pokemon-grid">
-                        @for (poke of visiblePokemon; track poke.id) {
-                            <div class="pokemon-card" (click)="loadPokemonData(poke)">
-                                <div class="background-text number pixeltext">{{ poke.id }}</div>
-                                <img [src]="poke.sprite" [alt]="poke.name + ' Sprite'" loading="lazy">
-                                <p>{{ formatPokemonName(poke.name) | titlecase }}</p>
-                            </div>
-                        }
-                        @if (gettingLibraryLoading) {
-                            <div class="load-more">
-                                <img src="assets/images/loading-pokeball.gif" alt="Loading Pokémon library">
-                                <p>Loading</p>
-                            </div>
-                        }
-                    </div>
-                }
-                @else {
-                    <div class="loading-state">
-                        <p class="question-mark">?</p>
-                        <p>No Pokémon found.</p>
-                    </div>
-                }
-            </div>
-        </div>
-    }
-
     @if (menuOpen) {
-        <div class="menu-overlay" (click)="closeMenu()">
+        <div class="menu-overlay" (click)="menuOpen = false">
             <div class="menu-dialog" (click)="$event.stopPropagation()">
                 <div class="menu-header">
                     <h4 class="pixeltext">Menu</h4>
-                    <button type="button" class="close-btn pixeltext" (click)="closeMenu()">
+                    <button type="button" class="close-btn pixeltext" (click)="menuOpen = false">
                         <img src="assets/images/icons/close.svg" alt="Close Button">
                     </button>
                 </div>
 
                 <div class="menu-body">
-                    <button type="button" class="menu-item pixeltext">Pokédex</button>
-                    <button type="button" class="menu-item pixeltext">Types</button>
+                    <button type="button" class="menu-item pixeltext" (click)="openMenu('pokedex')">Pokédex</button>
+                    <button type="button" class="menu-item pixeltext" (click)="openMenu('types')">Types</button>
                 </div>
             </div>
         </div>
