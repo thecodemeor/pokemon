@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "mozek": {
+    "pokemon": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -66,10 +66,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "mozek:build:production"
+              "buildTarget": "pokemon:build:production"
             },
             "development": {
-              "buildTarget": "mozek:build:development"
+              "buildTarget": "pokemon:build:development"
             }
           },
           "defaultConfiguration": "development"
